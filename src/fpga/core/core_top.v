@@ -540,14 +540,24 @@ assign video_hs = vidout_hs;
     reg [9:0]   square_x = 'd135;
     reg [9:0]   square_y = 'd95;
 
+    // Count three clock cycles to switch between red, green, and blue.
+    reg [25:0]  color_counter; // ceil(log2(12_288_000 * 3)) == 26
+
 always @(posedge clk_core_12288 or negedge reset_n) begin
 
     if(~reset_n) begin
     
         x_count <= 0;
         y_count <= 0;
+
+        color_counter <= 0;
         
     end else begin
+        color_counter <= color_counter + 1'd1;
+        if (color_counter == 12288000 * 3) begin
+            color_counter <= 0;
+        end
+
         vidout_de <= 0;
         vidout_skip <= 0;
         vidout_vs <= 0;
@@ -590,10 +600,26 @@ always @(posedge clk_core_12288 or negedge reset_n) begin
             if(y_count >= VID_V_BPORCH && y_count < VID_V_ACTIVE+VID_V_BPORCH) begin
                 // data enable. this is the active region of the line
                 vidout_de <= 1;
-                
-                vidout_rgb[23:16] <= 8'd60;
-                vidout_rgb[15:8]  <= 8'd60;
-                vidout_rgb[7:0]   <= 8'd60;
+                if (color_counter <= 26'd12288000) begin
+                    vidout_rgb[23:16] <= 8'd255;
+                end
+                else begin
+                    vidout_rgb[23:16] <= 8'd0;
+                end
+
+                if (26'd12288000 < color_counter && color_counter <= 26'd24576000) begin
+                    vidout_rgb[15:8] <= 8'd255;
+                end
+                else begin
+                    vidout_rgb[15:8] <= 8'd0;
+                end
+
+                if (26'd24576000 < color_counter && color_counter <= 26'd36864000) begin
+                    vidout_rgb[7:0] <= 8'd255;
+                end
+                else begin
+                    vidout_rgb[7:0] <= 8'd0;
+                end
                 
             end 
         end
